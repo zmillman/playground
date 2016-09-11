@@ -2,10 +2,16 @@
 ---
 scene = new THREE.Scene()
 camera = new THREE.PerspectiveCamera( 10, window.innerWidth / window.innerHeight, 0.3, 1000 )
-
 renderer = new THREE.WebGLRenderer()
-renderer.setSize( window.innerWidth, window.innerHeight )
+
+configureRenderer = ->
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize( window.innerWidth, window.innerHeight )
+configureRenderer()
+
 document.body.appendChild( renderer.domElement )
+window.addEventListener 'resize', configureRenderer, false
 
 pointLight = new THREE.PointLight(0xFFFFFF)
 pointLight.position.x = 10
@@ -16,28 +22,35 @@ scene.add pointLight
 camera.position.z = 100
 
 size = 8.0
-square1 = new THREE.PlaneGeometry(size, size, 1)
-square2 = Paper.crease(square1, new THREE.Plane(new THREE.Vector3(1.0, 0, 0), size * 0.25))
-square3 = Paper.crease(square2, new THREE.Plane(new THREE.Vector3(1.0, 0, 0), size * 0.1))
-square4 = Paper.crease(square3, new THREE.Plane(new THREE.Vector3(1.0, 0, 0), size * -0.25))
-# square = Paper.crease(square, new THREE.Plane(new THREE.Vector3(-0.3, -0.3, 0), 0.5))
-# square = Paper.crease(square, new THREE.Plane(new THREE.Vector3(-0.3, 0.3, 0), 0.5))
+model1 = new Paper(size)
+model2 = new Paper(size)
+model3 = new Paper(size)
+model4 = new Paper(size)
 
-models = (new Paper(square) for square in [square1, square2, square3, square4])
+window.models = models = [model1, model2, model3, model4]
+window.skeletonHelpers = skeletonHelpers = []
 for model, i in models
-  for object in model.objects
-    object.position.x = (i - ((models.length - 1) / 2)) * 1.5 * size
-    scene.add object
-    wireframe = new THREE.WireframeHelper(object, 0x00ff00)
-    scene.add wireframe
+  model.mesh.position.x = (i - ((models.length - 1) / 2)) * 1.5 * size
+  scene.add model.mesh
+  scene.add new THREE.WireframeHelper(model.mesh, 0x00ff00)
+  skeletonHelper = new THREE.SkeletonHelper(model.mesh)
+  skeletonHelpers.push(skeletonHelper)
+  skeletonHelper.material.linewidth = 2
+  scene.add( skeletonHelper )
 
 render = ->
-  # requestAnimationFrame( render )
+  requestAnimationFrame( render )
 
-  # for model in models
-  #   for object in model.objects
-  #     # object.rotation.x += 0.02
-  #     object.rotation.y += 0.02
+  for model, i in models
+    time = Date.now() / 1000.0
+    model.mesh.rotation.x = (time % (2 * Math.PI)) + i * 1.5 * Math.PI / models.length
+    for bone in model.mesh.skeleton.bones[1..]
+      # bone.rotation.x = Math.sin( time ) * 2 / model.mesh.skeleton.bones.length
+      bone.rotation.y = Math.sin( time ) * 2 * Math.PI / (model.mesh.skeleton.bones.length - 1)
+      # bone.position.x = 8 - Math.abs(Math.sin( time ) * 4.8 / model.mesh.skeleton.bones.length)
+
+  for skeletonHelper in skeletonHelpers
+    skeletonHelper.update()
 
   renderer.render( scene, camera )
 
